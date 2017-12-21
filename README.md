@@ -1,0 +1,2 @@
+# okanebot
+I daisuki okane.
