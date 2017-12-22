@@ -31,29 +31,34 @@ const currencies = {
   omg: 'omisego',
   xvg: 'verge',
   xsh: 'shield-xsh',
-  xp: 'xp'
+  xp: 'xp',
+  stc: 'santa-coin',
+  usdt: 'tether'
+};
+
+const numberFormat = (value) => {
+  return parseFloat(value).toLocaleString();
 };
 
 controller.hears(
-  '^jpy (.+)$',
-  ['direct_message','direct_mention','mention'],
+  '^(' + Object.keys(currencies).join('|') + ')$',
+  ['direct_message', 'direct_mention', 'mention'],
   (bot, message) => {
-    const currency = message.match[1];
-    if (typeof currencies[currency] == 'undefined') {
-      bot.reply(message, 'Could not find ' + currency.toUpperCase());
-      return;
-    }
+    const symbol = message.match[1];
     request.get({
-      uri: URL + currencies[currency],
+      uri: URL + currencies[symbol],
       headers: { 'Content-type': 'application/json' },
       qs: { convert: 'JPY' },
       json: true
     },
     (err, req, data) => {
       const info = data[0];
-      let strings = [];
-      strings.push(info.symbol + ' is ¥' + info.price_jpy + ' JPY (' + info.percent_change_24h + '%)');
-      bot.reply(message, strings.join('\n'));
+      let res = [];
+      res.push(info.symbol + ' is ¥' + numberFormat(info.price_jpy) + ' JPY (' + info.percent_change_24h + '%)');
+      if (symbol != 'btc') {
+        res.push(' and ' + numberFormat(info.price_btc) + ' BTC');
+      }
+      bot.reply(message, res.join(''));
     });
   }
 );
