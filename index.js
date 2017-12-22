@@ -37,7 +37,9 @@ const currencies = {
 };
 
 const numberFormat = (value) => {
-  return parseFloat(value).toLocaleString();
+  const arr = value.split('.');
+  arr[0] = parseInt(arr[0], 10).toLocaleString();
+  return arr.join('.');
 };
 
 controller.hears(
