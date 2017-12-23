@@ -76,10 +76,10 @@ updateCurrencies().then(() => {
         .then(ticker => {
           let res = '';
           res += ticker.symbol + ' is ¥' + numberFormat(ticker.price_jpy) + ' JPY (1h: ' + ticker.percent_change_1h + '% / 24h: ' + ticker.percent_change_24h + '%)';
-          if (symbol != 'btc') {
+          if (ticker.symbol != 'BTC') {
             res += ' and ' + numberFormat(ticker.price_btc) + ' BTC';
           }
-          res += '\n' + WEB_URI + currencies[symbol];
+          res += '\n' + WEB_URI + currencies[ticker.symbol.toLowerCase()];
           bot.reply(message, '```' + res + '```');
         })
         .catch(err => {
