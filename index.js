@@ -1,5 +1,5 @@
 const Botkit = require('botkit');
-const request = require('request');
+const fetch = require('node-fetch')
 
 const API_URI = 'https://api.coinmarketcap.com/v1/ticker/';
 const WEB_URI = 'https://coinmarketcap.com/currencies/';
@@ -8,17 +8,6 @@ if (!process.env.SLACK_TOKEN) {
   console.log('Error: Specify token in environment');
   process.exit(1);
 }
-
-const controller = Botkit.slackbot({
-  debug: false
-});
-
-controller.spawn({ token: process.env.SLACK_TOKEN })
-  .startRTM((err) => {
-    if (err) {
-      throw new Error(err);
-    }
-  });
 
 const currencies = {
   btc: 'bitcoin',
@@ -44,26 +33,60 @@ const numberFormat = (value) => {
   return arr.join('.');
 };
 
-controller.hears(
-  '^(' + Object.keys(currencies).join('|') + ')$',
-  ['direct_message', 'direct_mention', 'mention'],
-  (bot, message) => {
-    const symbol = (message.match[1] || '').toLowerCase();
-    request.get({
-      uri: API_URI + currencies[symbol],
-      headers: { 'Content-type': 'application/json' },
-      qs: { convert: 'JPY' },
-      json: true
-    },
-    (err, req, data) => {
-      const info = data[0];
-      let res = '';
-      res += info.symbol + ' is ¥' + numberFormat(info.price_jpy) + ' JPY (1h: ' + info.percent_change_1h + '% / 24h: ' + info.percent_change_24h + '%)';
-      if (symbol != 'btc') {
-        res += ' and ' + numberFormat(info.price_btc) + ' BTC';
-      }
-      res += '\n' + WEB_URI + currencies[symbol];
-      bot.reply(message, '```' + res + '```');
-    });
+async function updateCurrencies() {
+  const res = await fetch(API_URI).then(res => res.json());
+  res.forEach(ticker => {
+    currencies[ticker.symbol.toLowerCase()] = symbol.id;
+  })
+}
+
+async function fetchTicker(symbolOrId) {
+  if (!symbolOrId) {
+    throw new Error('Not symbol or id');
   }
-);
+
+  symbolOrId = symbolOrId.toLowerCase()
+
+  const res = await fetch(API_URI + '?convert=JPY').then(res => res.json());
+  const ticker = res.filter(res => res.id.toLowerCase() === symbolOrId || res.symbol.toLowerCase() === symbolOrId)[0];
+  if (!ticker) {
+    throw new Error('Not found ' + symbolOrId);
+  }
+  return ticker;
+}
+
+const controller = Botkit.slackbot({
+  debug: false
+});
+
+updateCurrencies().then(() => {
+  controller.spawn({ token: process.env.SLACK_TOKEN })
+    .startRTM((err) => {
+      if (err) {
+        throw new Error(err);
+      }
+    });
+
+  controller.hears(
+    '^(' + Object.keys(currencies).join('|') + ')$',
+    ['direct_message', 'direct_mention', 'mention'],
+    (bot, message) => {
+      const symbolOrId = message.match[1];
+      return fetchTicker(symbolOrId)
+        .then(ticker => {
+          let res = '';
+          res += ticker.symbol + ' is ¥' + numberFormat(ticker.price_jpy) + ' JPY (1h: ' + ticker.percent_change_1h + '% / 24h: ' + ticker.percent_change_24h + '%)';
+          if (symbol != 'btc') {
+            res += ' and ' + numberFormat(ticker.price_btc) + ' BTC';
+          }
+          res += '\n' + WEB_URI + currencies[symbol];
+          bot.reply(message, '```' + res + '```');
+        })
+        .catch(err => {
+          bot.reply(message, err.message);
+          console.error('fetchTicker', err);
+        });
+    }
+  );
+}).catch(err => console.error('updateCurrensies', err))
+
