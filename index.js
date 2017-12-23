@@ -1,7 +1,8 @@
 const Botkit = require('botkit');
 const request = require('request');
 
-const URL = 'https://api.coinmarketcap.com/v1/ticker/';
+const API_URI = 'https://api.coinmarketcap.com/v1/ticker/';
+const WEB_URI = 'https://coinmarketcap.com/currencies/';
 
 if (!process.env.SLACK_TOKEN) {
   console.log('Error: Specify token in environment');
@@ -33,6 +34,7 @@ const currencies = {
   xsh: 'shield-xsh',
   xp: 'xp',
   stc: 'santa-coin',
+  xlm: 'stellar',
   usdt: 'tether'
 };
 
@@ -48,19 +50,20 @@ controller.hears(
   (bot, message) => {
     const symbol = (message.match[1] || '').toLowerCase();
     request.get({
-      uri: URL + currencies[symbol],
+      uri: API_URI + currencies[symbol],
       headers: { 'Content-type': 'application/json' },
       qs: { convert: 'JPY' },
       json: true
     },
     (err, req, data) => {
       const info = data[0];
-      let res = [];
-      res.push(info.symbol + ' is ¥' + numberFormat(info.price_jpy) + ' JPY (' + info.percent_change_24h + '%)');
+      let res = '';
+      res += info.symbol + ' is ¥' + numberFormat(info.price_jpy) + ' JPY (1h: ' + info.percent_change_1h + '% / 24h: ' + info.percent_change_24h + '%)';
       if (symbol != 'btc') {
-        res.push(' and ' + numberFormat(info.price_btc) + ' BTC');
+        res += ' and ' + numberFormat(info.price_btc) + ' BTC';
       }
-      bot.reply(message, res.join(''));
+      res += '\n' + WEB_URI + currencies[symbol];
+      bot.reply(message, '```' + res + '```');
     });
   }
 );
