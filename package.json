@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/saihoooooooo/okanebot#readme",
   "dependencies": {
-    "botkit": "^0.6.7"
+    "botkit": "^0.6.7",
+    "node-fetch": "^1.7.3"
   }
 }
