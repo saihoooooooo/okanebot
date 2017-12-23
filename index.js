@@ -47,7 +47,7 @@ async function fetchTicker(symbolOrId) {
 
   symbolOrId = symbolOrId.toLowerCase()
 
-  const res = await fetch(API_URI + '?convert=JPY').then(res => res.json());
+  const res = await fetch(API_URI + '?convert=JPY&limit=10000').then(res => res.json());
   const ticker = res.filter(res => res.id.toLowerCase() === symbolOrId || res.symbol.toLowerCase() === symbolOrId)[0];
   if (!ticker) {
     throw new Error('Not found ' + symbolOrId);
