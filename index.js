@@ -34,7 +34,7 @@ const numberFormat = (value) => {
 };
 
 async function updateCurrencies() {
-  const res = await fetch(API_URI).then(res => res.json());
+  const res = await fetch(API_URI + '?limit=10000').then(res => res.json());
   res.forEach(ticker => {
     currencies[ticker.symbol.toLowerCase()] = ticker.id;
   })
