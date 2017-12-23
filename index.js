@@ -46,7 +46,7 @@ controller.hears(
   '^(' + Object.keys(currencies).join('|') + ')$',
   ['direct_message', 'direct_mention', 'mention'],
   (bot, message) => {
-    const symbol = message.match[1];
+    const symbol = (message.match[1] || '').toLowerCase();
     request.get({
       uri: URL + currencies[symbol],
       headers: { 'Content-type': 'application/json' },
