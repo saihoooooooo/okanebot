@@ -69,7 +69,7 @@ updateCurrencies().then(() => {
 
   controller.hears(
     '^(' + Object.keys(currencies).join('|') + ')$',
-    ['direct_message', 'direct_mention', 'mention'],
+    ['direct_message', 'direct_mention'],
     (bot, message) => {
       const symbolOrId = message.match[1];
       return fetchTicker(symbolOrId)
