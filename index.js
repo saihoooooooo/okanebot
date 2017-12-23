@@ -46,7 +46,7 @@ const numberFormat = (value) => {
 
 controller.hears(
   '^(' + Object.keys(currencies).join('|') + ')$',
-  ['direct_message', 'direct_mention', 'mention'],
+  ['direct_message', 'direct_mention'],
   (bot, message) => {
     const symbol = (message.match[1] || '').toLowerCase();
     request.get({
