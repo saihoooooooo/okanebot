@@ -52,17 +52,23 @@ controller.spawn({ token: process.env.SLACK_TOKEN })
 
 updateCurrencies().then(() => {
   controller.hears(
-    '^(' + Object.keys(currencies).join('|') + ')$',
+    '^(' + Object.keys(currencies).join('|') + ') ?(.+)?$',
     ['direct_message', 'direct_mention'],
     (bot, message) => {
       const symbolOrId = message.match[1];
+      const amount = message.match[2] || 1;
       return fetchTicker(symbolOrId)
         .then(ticker => {
           let res = '';
-          res += ticker.symbol + ' is ¥' + numberFormat(ticker.price_jpy) + ' JPY (1h: ' + ticker.percent_change_1h + '% / 24h: ' + ticker.percent_change_24h + '%)';
+
+          const priceJpy = '' + mathjs.eval(ticker.price_jpy + ' * ' + amount);
+          res += ticker.symbol + ' is ¥' + numberFormat(priceJpy) + ' JPY (1h: ' + ticker.percent_change_1h + '% / 24h: ' + ticker.percent_change_24h + '%)';
+
           if (ticker.symbol != 'BTC') {
-            res += ' and ' + numberFormat(ticker.price_btc) + ' BTC';
+            const priceBtc = '' + mathjs.eval(ticker.price_btc + ' * ' + amount);
+            res += ' and ' + numberFormat(priceBtc) + ' BTC';
           }
+
           res += '\n' + WEB_URI + currencies[ticker.symbol.toLowerCase()];
           bot.reply(message, '```' + res + '```');
         })
