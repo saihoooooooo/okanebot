@@ -56,7 +56,7 @@ updateCurrencies().then(() => {
     ['direct_message', 'direct_mention'],
     (bot, message) => {
       const symbolOrId = message.match[1];
-      const amount = message.match[2] || 1;
+      const amount = parseFloat(message.match[2]) || 1;
       return fetchTicker(symbolOrId)
         .then(ticker => {
           let res = '';
