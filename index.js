@@ -1,5 +1,6 @@
 const Botkit = require('botkit');
-const fetch = require('node-fetch')
+const fetch = require('node-fetch');
+const mathjs = require('mathjs')
 
 const API_URI = 'https://api.coinmarketcap.com/v1/ticker/';
 const WEB_URI = 'https://coinmarketcap.com/currencies/';
@@ -9,30 +10,13 @@ if (!process.env.SLACK_TOKEN) {
   process.exit(1);
 }
 
-const currencies = {
-  btc: 'bitcoin',
-  ltc: 'litecoin',
-  bch: 'bitcoin-cash',
-  dog: 'dogecoin',
-  mona: 'monacoin',
-  eth: 'ethereum',
-  xem: 'nem',
-  xrp: 'ripple',
-  omg: 'omisego',
-  xvg: 'verge',
-  xsh: 'shield-xsh',
-  xp: 'xp',
-  stc: 'santa-coin',
-  xlm: 'stellar',
-  usdt: 'tether'
-};
-
 const numberFormat = (value) => {
   const arr = value.split('.');
   arr[0] = parseInt(arr[0], 10).toLocaleString();
   return arr.join('.');
 };
 
+const currencies = {};
 async function updateCurrencies() {
   const res = await fetch(API_URI + '?limit=10000').then(res => res.json());
   res.forEach(ticker => {
@@ -59,14 +43,14 @@ const controller = Botkit.slackbot({
   debug: false
 });
 
-updateCurrencies().then(() => {
-  controller.spawn({ token: process.env.SLACK_TOKEN })
-    .startRTM((err) => {
-      if (err) {
-        throw new Error(err);
-      }
-    });
+controller.spawn({ token: process.env.SLACK_TOKEN })
+  .startRTM((err) => {
+    if (err) {
+      throw new Error(err);
+    }
+  });
 
+updateCurrencies().then(() => {
   controller.hears(
     '^(' + Object.keys(currencies).join('|') + ')$',
     ['direct_message', 'direct_mention'],
@@ -88,5 +72,16 @@ updateCurrencies().then(() => {
         });
     }
   );
-}).catch(err => console.error('updateCurrensies', err))
+}).catch(err => console.error('updateCurrensies', err));
 
+controller.hears(
+  '^math (.+)$',
+  ['direct_message', 'direct_mention'],
+  (bot, message) => {
+    try {
+      const result = mathjs.eval(message.match[1]);
+      bot.reply(message, '' + result);
+    } catch (e) {
+    }
+  }
+);
