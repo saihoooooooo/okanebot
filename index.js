@@ -30,12 +30,25 @@ async function fetchTicker (symbolOrId) {
   }
 
   symbolOrId = symbolOrId.toLowerCase()
-
-  const res = await fetch(API_URI + '?convert=JPY&limit=10000').then(res => res.json())
-  const ticker = res.filter(res => res.id.toLowerCase() === symbolOrId || res.symbol.toLowerCase() === symbolOrId)[0]
-  if (!ticker) {
-    throw new Error('Not found ' + symbolOrId)
+  let id = currencies[symbolOrId]
+  if (!id) {
+    for (const val of Object.keys(currencies).map(key => currencies[key])) {
+      if (symbolOrId !== val) {
+        continue
+      }
+      id = val
+      break
+    }
   }
+
+  const ticker = await fetch(`${API_URI}/${id}/?convert=JPY`)
+    .then(res => res.json())
+    .then(res => {
+      if (res.error) {
+        throw new Error(res.error)
+      }
+      return res[0]
+    })
   return ticker
 }
 
@@ -50,34 +63,33 @@ controller.spawn({ token: process.env.SLACK_TOKEN })
     }
   })
 
+const handler = (bot, message) => {
+  const { text } = message
+  const [symbolOrId, amount] = text.split(' ')
+  return fetchTicker(symbolOrId)
+    .then(ticker => {
+      let res = ''
+      const math = (a = 1.0, b = 1.0) => mathjs.eval(a + ' * ' + (parseFloat(b) || 1))
+      const priceJpy = '' + math(ticker.price_jpy, amount)
+      res += ticker.symbol + ' is ¥' + numberFormat(priceJpy) + ' JPY (1h: ' + ticker.percent_change_1h + '% / 24h: ' + ticker.percent_change_24h + '%)'
+
+      if (ticker.symbol !== 'BTC') {
+        const priceBtc = '' + math(ticker.price_btc, amount)
+        res += ' and ' + numberFormat(priceBtc) + ' BTC'
+      }
+
+      res += '\n' + WEB_URI + currencies[ticker.symbol.toLowerCase()]
+      bot.reply(message, '```' + res + '```')
+    })
+    .catch(err => {
+      bot.reply(message, err.message)
+      console.error('fetchTicker', err)
+    })
+}
+
 updateCurrencies().then(() => {
-  controller.hears(
-    '^(' + Object.keys(currencies).join('|') + ') ?(.+)?$',
-    ['direct_message', 'direct_mention'],
-    (bot, message) => {
-      const symbolOrId = message.match[1]
-      const amount = parseFloat(message.match[2]) || 1
-      return fetchTicker(symbolOrId)
-        .then(ticker => {
-          let res = ''
-
-          const priceJpy = '' + mathjs.eval(ticker.price_jpy + ' * ' + amount)
-          res += ticker.symbol + ' is ¥' + numberFormat(priceJpy) + ' JPY (1h: ' + ticker.percent_change_1h + '% / 24h: ' + ticker.percent_change_24h + '%)'
-
-          if (ticker.symbol !== 'BTC') {
-            const priceBtc = '' + mathjs.eval(ticker.price_btc + ' * ' + amount)
-            res += ' and ' + numberFormat(priceBtc) + ' BTC'
-          }
-
-          res += '\n' + WEB_URI + currencies[ticker.symbol.toLowerCase()]
-          bot.reply(message, '```' + res + '```')
-        })
-        .catch(err => {
-          bot.reply(message, err.message)
-          console.error('fetchTicker', err)
-        })
-    }
-  )
+  controller.on('direct_message', handler)
+  controller.on('direct_mention', handler)
 }).catch(err => console.error('updateCurrensies', err))
 
 controller.hears(
