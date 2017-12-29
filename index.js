@@ -10,10 +10,10 @@ if (!process.env.SLACK_TOKEN) {
   process.exit(1)
 }
 
-const numberFormat = (value) => {
+const numberFormat = (value, trancates = false) => {
   const arr = value.split('.')
   arr[0] = parseInt(arr[0], 10).toLocaleString()
-  return arr.join('.')
+  return trancates ? arr[0] : arr.join('.')
 }
 
 const currencies = {}
@@ -65,13 +65,15 @@ controller.spawn({ token: process.env.SLACK_TOKEN })
 
 const handler = (bot, message) => {
   const { text } = message
-  const [symbolOrId, amount] = text.split(' ')
+  const [symbolOrId, tmpAmount] = text.split(' ')
   return fetchTicker(symbolOrId)
     .then(ticker => {
-      let res = ''
-      const math = (a = 1.0, b = 1.0) => mathjs.eval(a + ' * ' + (parseFloat(b) || 1))
+      const amount = parseFloat(tmpAmount) || 1.0
+      let res = amount !== 1.0 ? amount + ' ' : ''
+
+      const math = (a, b) => mathjs.eval(a + ' * ' + b)
       const priceJpy = '' + math(ticker.price_jpy, amount)
-      res += ticker.symbol + ' is ¥' + numberFormat(priceJpy) + ' JPY (1h: ' + ticker.percent_change_1h + '% / 24h: ' + ticker.percent_change_24h + '%)'
+      res += ticker.symbol + ' is ¥' + numberFormat(priceJpy) + ' JPY (1h: ' + ticker.percent_change_1h + '% / 24h: ' + ticker.percent_change_24h + '% / 24hvol: ' + numberFormat(ticker['24h_volume_jpy'], true) + ' JPY)'
 
       if (ticker.symbol !== 'BTC') {
         const priceBtc = '' + math(ticker.price_btc, amount)
