@@ -1,6 +1,11 @@
 const Botkit = require('botkit')
 const fetch = require('node-fetch')
 const mathjs = require('mathjs')
+const fs = require('fs');
+const MeCab = new require('mecab-async')
+const mecab = new MeCab();
+MeCab.command = "mecab -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd"
+const MarkovChain = require('./libs/markovChain.js');
 
 const API_URI = 'https://api.coinmarketcap.com/v1/ticker/'
 const WEB_URI = 'https://coinmarketcap.com/currencies/'
@@ -102,6 +107,73 @@ controller.hears(
       const result = mathjs.eval(message.match[1])
       bot.reply(message, '' + result)
     } catch (e) {
+    }
+  }
+)
+
+const markov = new MarkovChain();
+const miyukkiText = fs.readFileSync('miyukki.txt', 'utf-8').split("\n");
+miyukkiText.forEach((line) => {
+  mecab.parse(line, (err, result) => {
+    if (err) {
+      return;
+    }
+
+    const words = result.map((word) => {
+      return word[0];
+    });
+
+    if (words.length > 0) {
+      markov.add(words);
+    }
+  });
+});
+
+controller.hears(
+  '^miyukki ?(.*)?$',
+  ['direct_message', 'direct_mention'],
+  (bot, message) => {
+    let word = null;
+    if (message.match[1]) {
+      word = message.match[1];
+      if (!markov.exists(word)) {
+        bot.reply(message, 'ありましぇ〜ん');
+        return;
+      }
+    }
+
+    bot.reply(message, markov.make(word));
+  }
+)
+
+controller.hears(
+  '([\\s\\S]*)',
+  ['ambient'],
+  (bot, message) => {
+    const text = message.match[1].replace(/\n/g, ' ');
+    // みゆっきの発言を保存
+    if (message.user == 'U8GRR2QLR') {
+      fs.appendFileSync('miyukki.txt', text + '\n');
+    }
+
+    if (Math.random() < 0.05) {
+      mecab.parse(text, (err, result) => {
+        if (err) {
+          return;
+        }
+    
+        let nouns = [];
+        result.map((word) => {
+          if (word[1] == '名詞' && markov.exists(word[0])) {
+            nouns.push(word[0]);
+          }
+        });
+    
+        if (nouns.length > 0) {
+          const word = nouns[Math.floor(Math.random() * nouns.length)];
+          bot.reply(message, markov.make(word));
+        }
+      });
     }
   }
 )
