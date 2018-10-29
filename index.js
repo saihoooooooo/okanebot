@@ -112,14 +112,21 @@ controller.hears(
 )
 
 const markov = new MarkovChain();
+const asyncForEach = async (array, callback) => {
+  for (let index = 0; index < array.length; index++) {
+    await callback(array[index], index, array);
+  }
+}
+const waitFor = (ms) => new Promise(r => setTimeout(r, ms));
 const miyukkiText = fs.readFileSync('miyukki.txt', 'utf-8').split("\n");
-miyukkiText.forEach((line) => {
+asyncForEach(miyukkiText, async (line) => {
   mecab.parse(line, (err, result) => {
     if (err) {
+      fs.appendFileSync('hoge.txt', JSON.stringify(err) + '\n');
       return;
     }
 
-    const words = result.map((word) => {
+    const words = result.map(word => {
       return word[0];
     });
 
@@ -127,6 +134,8 @@ miyukkiText.forEach((line) => {
       markov.add(words);
     }
   });
+
+  await waitFor(10);
 });
 
 controller.hears(
@@ -151,9 +160,24 @@ controller.hears(
   ['ambient'],
   (bot, message) => {
     const text = message.match[1].replace(/\n/g, ' ');
+
     // みゆっきの発言を保存
     if (message.user == 'U8GRR2QLR') {
       fs.appendFileSync('miyukki.txt', text + '\n');
+
+      mecab.parse(text, (err, result) => {
+        if (err) {
+          return;
+        }
+
+        const words = result.map(word => {
+          return word[0];
+        });
+
+        if (words.length > 0) {
+          markov.add(words);
+        }
+      });
     }
 
     if (Math.random() < 0.05) {
@@ -163,7 +187,7 @@ controller.hears(
         }
     
         let nouns = [];
-        result.map((word) => {
+        result.map(word => {
           if (word[1] == '名詞' && markov.exists(word[0])) {
             nouns.push(word[0]);
           }
